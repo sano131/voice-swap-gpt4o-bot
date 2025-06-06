@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
@@ -16,6 +17,33 @@ const lineConfig = {
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
 const lineClient = new Client(lineConfig);
+
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_JSON, "base64").toString("utf8")),
+  scopes: ["https://www.googleapis.com/auth/documents"],
+});
+
+const docs = google.docs({ version: "v1", auth });
+
+async function appendToGoogleDoc(content) {
+  try {
+    await docs.documents.batchUpdate({
+      documentId: process.env.GOOGLE_DOC_ID,
+      requestBody: {
+        requests: [
+          {
+            insertText: {
+              location: { index: 1 },
+              text: `\n${content}\n`,
+            },
+          },
+        ],
+      },
+    });
+  } catch (error) {
+    console.error("Failed to write to Google Docs:", error);
+  }
+}
 
 app.post("/webhook", middleware(lineConfig), async (req, res) => {
   const events = req.body.events;
@@ -53,11 +81,14 @@ app.post("/webhook", middleware(lineConfig), async (req, res) => {
 
         const summary = summaryCompletion.choices[0].message.content;
 
+        const replyText = `🎤 音声認識：\n${originalText}\n\n📄 翻訳＆要約：\n${summary}`;
+
         await lineClient.replyMessage(event.replyToken, {
           type: "text",
-          text: `🎤 音声認識：\n${originalText}\n\n📄 翻訳＆要約：\n${summary}`,
+          text: replyText,
         });
 
+        await appendToGoogleDoc(replyText);
         fs.unlinkSync(tempPath);
       } catch (err) {
         console.error("Error:", err);
