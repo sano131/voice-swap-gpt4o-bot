@@ -75,7 +75,7 @@ app.post("/webhook", middleware(lineConfig), async (req, res) => {
           model: "gpt-4o",
           messages: [
             { role: "system", content: "あなたはプロの通訳者兼議事録作成者です。" },
-            { role: "user", content: `以下の日本語音声の内容を英訳し、議事録用に簡潔にまとめてください：\n\n${originalText}` },
+            { role: "user", content: ``以下の日本語の会議内容を読み取り、箇条書きで日本語の議事録サマリーを出力してください。：\n\n${originalText}` },
           ],
         });
 
